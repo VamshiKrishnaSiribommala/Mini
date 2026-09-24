@@ -1,0 +1,60 @@
+# Training parameters
+epochs:    50
+patience:  10
+batch_size: 8
+lr:        2e-5
+seed:      2709
+
+# Model parameters
+num_fusion_layers: 5
+use_focal: false
+use_hybrid: true
+image_backbone: "medclip"
+fusion_type: "cross"
+joint_dim: 1024
+num_heads: 8
+text_dim: 512
+use_shared_ffn: false
+use_cls_only: false
+
+# Knowledge graph parameters
+kg_model: "CompGCN"       # options: TransE | TransH | RotatE | CompGCN
+kg_method: "cosine"
+kg_emb_dim: 300
+kg_epochs: 50
+kg_mode: "hybrid"   # options: dataset | ontology | hybrid
+kg_neg_size: 32
+kg_adv_temp: 0.5
+kg_use_amp: true
+kg_lr : 5e-4
+
+# CompGCN-specific (only used if kg_model=CompGCN)
+kg_num_layers: 2
+kg_dropout: 0.25
+kg_opn: "corr"           # options: sub | mult | corr
+
+# Loss parameters
+cls_weight: 5.0
+cont_weight: 0.35
+kg_weight: 0.5
+weight_img_joint : 0.5
+weight_text_joint : 0.5
+gamma_focal: 1.0
+focal_ratio: 0.3
+temperature: 0.125
+
+# Label aware parameters
+la_hidden_dim: 256
+la_batch_size: 128
+la_epochs: 50
+la_lr: 5e-4
+la_patience: 10
+la_ice_weight: 1.0
+la_tpl_weight: 0.5
+la_bce_weight: 0.1
+
+# Sample parameters
+pos_weight_clamp_max: 5.0
+
+# Wandb parameters
+project_name: "multimodal-disease-classification-1410-experiments"

@@ -1,0 +1,15 @@
+{
+  "model_name": "CompGCN",
+  "emb_dim": 300,
+  "n_nodes": 134385,
+  "n_rels": 9,
+  "ent_shape": [
+    134385,
+    300
+  ],
+  "rel_shape": [
+    9,
+    300
+  ],
+  "higher_better": false
+}

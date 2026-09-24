@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Medical Image Retrieval & Explanation</title>
+
+    <!-- Bootstrap 5 CSS (CDN) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+
+    <!-- Your custom overrides -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+
+<body class="d-flex flex-column min-vh-100">
+
+    <!-- Navbar -->
+    <nav class="navbar navbar-dark bg-dark mb-4">
+        <div class="container">
+            <span class="navbar-brand mb-0 h1">Medical Image Predict & Explain</span>
+        </div>
+    </nav>
+
+    <!-- Main container -->
+    <div class="container flex-grow-1">
+
+        <!-- Upload & Query Form -->
+        <div class="card mb-4 p-4">
+            <h2 class="card-title mb-3">Predict & Explain</h2>
+            <form method="post" enctype="multipart/form-data" class="row g-3">
+                <div class="col-md-6">
+                    <label for="dicom_file" class="form-label">Upload DICOM</label>
+                    <input type="file" class="form-control" id="dicom_file" name="dicom_file" accept=".dcm" required />
+                </div>
+                <div class="col-md-6">
+                    <label for="text_query" class="form-label">Report Text / Query</label>
+                    <input type="text" class="form-control" id="text_query" name="text_query"
+                        value="(Put your report about the DICOM here)" required />
+                </div>
+
+                <div class="col-12 form-check">
+                    <input class="form-check-input" type="checkbox" id="show_image" name="show_image" checked />
+                    <label class="form-check-label" for="show_image">
+                        Show original DICOM image
+                    </label>
+                </div>
+
+                <div class="col-12 form-check">
+                    <input class="form-check-input" type="checkbox" id="show_retrieval_detail"
+                        name="show_retrieval_detail" />
+                    <label class="form-check-label" for="show_retrieval_detail">
+                        Show retrieval reports & labels
+                    </label>
+                </div>
+
+                <div class="col-md-6">
+                    <label for="threshold" class="form-label">Prediction Threshold</label>
+                    <input type="range" class="form-range" id="threshold" name="threshold" min="0.1" max="0.9"
+                        value="0.5" step="0.05"
+                        oninput="document.getElementById('threshold_val').textContent = this.value">
+                    <div>Current: <span id="threshold_val">0.5</span></div>
+                    <div class="form-text text-muted">
+                        <strong>Lower threshold</strong> → more sensitive (detects more positives).<br>
+                        <strong>Higher threshold</strong> → more specific (fewer false positives).
+                    </div>
+                </div>
+
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary">
+                        Predict & Explain
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        {% if threshold %}
+        <div class="mb-3">
+            <p><strong>Threshold used:</strong> {{ "%.2f"|format(threshold) }}</p>
+        </div>
+        {% endif %}
+
+        <!-- Predicted Labels -->
+        {% if pred_labels %}
+        <div class="card mb-4 p-4">
+            <h2 class="card-title mb-3">Threshold-Based Predictions</h2>
+            <ul class="list-group list-group-flush">
+                {% for lbl in pred_labels %}
+                <li class="list-group-item bg-transparent text-success">{{ lbl }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <!-- Top-K predicted labels with probabilities -->
+        {% if topk_idx %}
+        <div class="card mb-4 p-4">
+            <h2 class="card-title mb-3">Top Predictions (with probabilities)</h2>
+            <ul class="list-group list-group-flush">
+                {% for i in range(topk_idx|length) %}
+                <li class="list-group-item bg-transparent text-light">
+                    {{ topk_labels[i] if topk_labels and topk_labels|length > i else ("Label " ~ topk_idx[i]) }}:
+                    {{ "%.4f"|format(topk_vals[i]) if topk_vals and topk_vals|length > i else "n/a" }}
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <!-- Query Visualizations -->
+        {% if img_orig or attn_txt2img_b64 or ig_map_q_b64 or gradcam_map_q_b64 or attn_img2txt_html or
+        attn_comb_txt_html or attn_final_txt_html %}
+        <div class="card mb-4 p-4">
+            <h2 class="card-title mb-3">Visualizations (Query)</h2>
+            <div class="row g-3 align-items-start">
+
+                {% if show_image and img_orig %}
+                <div class="col-md-6 col-lg-3 text-center">
+                    <h6>Original</h6>
+                    <img src="data:image/png;base64,{{ img_orig }}" class="img-fluid rounded shadow-sm" />
+                    {% if text_query %}
+                    <div class="mt-2 p-2 border rounded bg-light text-dark">
+                        <strong>User Input Text:</strong><br>
+                        <pre style="white-space: pre-wrap;">{{ text_query }}</pre>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                {% if attn_txt2img_b64 %}
+                <div class="col-md-6 col-lg-3 text-center">
+                    <h6>Attention (Text→Image)</h6>
+                    <img src="data:image/png;base64,{{ attn_txt2img_b64 }}" class="img-fluid rounded shadow-sm" />
+                </div>
+                {% endif %}
+
+                {% if attn_comb_img_b64 %}
+                <div class="col-md-6 col-lg-3 text-center">
+                    <h6>Attention (Combined Image)</h6>
+                    <img src="data:image/png;base64,{{ attn_comb_img_b64 }}" class="img-fluid rounded shadow-sm" />
+                </div>
+                {% endif %}
+
+                {% if attn_final_img_b64 %}
+                <div class="col-md-6 col-lg-3 text-center">
+                    <h6>Final Attention (Image)</h6>
+                    <img src="data:image/png;base64,{{ attn_final_img_b64 }}" class="img-fluid rounded shadow-sm" />
+                </div>
+                {% endif %}
+
+                {% if ig_map_q_b64 %}
+                <div class="col-md-6 col-lg-3 text-center">
+                    <h6>Integrated Gradients</h6>
+                    <img src="data:image/png;base64,{{ ig_map_q_b64 }}" class="img-fluid rounded shadow-sm" />
+                </div>
+                {% endif %}
+
+                {% if gradcam_map_q_b64 %}
+                <div class="col-md-6 col-lg-3 text-center">
+                    <h6>Grad-CAM</h6>
+                    <img src="data:image/png;base64,{{ gradcam_map_q_b64 }}" class="img-fluid rounded shadow-sm" />
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Text attentions -->
+            {% if attn_img2txt_html %}
+            <div class="mt-3">
+                <h6>Attention (Image→Text)</h6>
+                <div class="p-2 border rounded bg-light text-dark"
+                    style="max-height:200px; overflow-y:auto; white-space:pre-wrap;">
+                    {{ attn_img2txt_html|safe }}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if attn_comb_txt_html %}
+            <div class="mt-3">
+                <h6>Attention (Combined Text)</h6>
+                <div class="p-2 border rounded bg-light text-dark"
+                    style="max-height:200px; overflow-y:auto; white-space:pre-wrap;">
+                    {{ attn_comb_txt_html|safe }}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if attn_final_txt_html %}
+            <div class="mt-3">
+                <h6>Final Token-Level Attention</h6>
+                <div class="p-2 border rounded bg-light text-dark"
+                    style="max-height:200px; overflow-y:auto; white-space:pre-wrap;">
+                    {{ attn_final_txt_html|safe }}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- Query Explanation Scores (separate card) -->
+        {% if attn_ig_metrics or gc_attn_metrics or cross_metrics %}
+        <div class="card mb-4 p-4">
+            <h2 class="card-title mb-3">Query Explanation Scores</h2>
+
+            {% if attn_ig_metrics %}
+            <h6>Attention vs Integrated Gradients</h6>
+            <ul>
+                {% for key, vals in attn_ig_metrics.items() %}
+                <li><strong>{{ key }}</strong> → Pearson={{ vals.pearson }}, Spearman={{ vals.spearman }}, IoU@5%={{
+                    vals.iou_top5pct }}, IoU@20%={{ vals.iou_top20pct }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+
+            {% if gc_attn_metrics %}
+            <h6>Attention vs Grad-CAM</h6>
+            <ul>
+                {% for key, vals in gc_attn_metrics.items() %}
+                <li><strong>{{ key }}</strong> → Pearson={{ vals.pearson }}, Spearman={{ vals.spearman }}, IoU@5%={{
+                    vals.iou_top5pct }}, IoU@20%={{ vals.iou_top20pct }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+
+            {% if cross_metrics %}
+            <h6>Cross-Modal Scores</h6>
+            <ul>
+                {% for key, val in cross_metrics.items() %}
+                <li><strong>{{ key }}</strong> → {{ val }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- Retrieved Image Details -->
+        {% if retrieval_detailed %}
+        <div class="card mb-4 p-4">
+            <h2 class="card-title mb-3">Retrieved Image Details</h2>
+
+            {% if retrieval_diversity_score is not none %}
+            <div class="alert alert-info">
+                <strong>Diversity score among retrieved attention maps:</strong>
+                {{ retrieval_diversity_score }}
+            </div>
+            {% endif %}
+
+            <div class="accordion" id="retrievalAccordion">
+                {% for item in retrieval_detailed %}
+                <div class="accordion-item mb-2">
+                    <h2 class="accordion-header" id="heading{{ loop.index }}">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                            data-bs-target="#collapse{{ loop.index }}">
+                            {{ item.id }} — dist {{ "%.3f"|format(item.dist) }}
+                        </button>
+                    </h2>
+                    <div id="collapse{{ loop.index }}" class="accordion-collapse collapse"
+                        data-bs-parent="#retrievalAccordion">
+                        <div class="accordion-body">
+
+                            <div class="row g-3">
+                                {% if item.image %}
+                                <div class="col-md-6 col-lg-3 text-center">
+                                    <h6>Original</h6>
+                                    <img src="data:image/png;base64,{{ item.image }}"
+                                        class="img-fluid rounded shadow-sm" />
+                                </div>
+                                {% endif %}
+
+                                {% if item.attn_txt_b64 %}
+                                <div class="col-md-6 col-lg-3 text-center">
+                                    <h6>Attention (Text→Image)</h6>
+                                    <img src="data:image/png;base64,{{ item.attn_txt_b64 }}"
+                                        class="img-fluid rounded shadow-sm" />
+                                </div>
+                                {% endif %}
+
+                                {% if item.attn_comb_b64 %}
+                                <div class="col-md-6 col-lg-3 text-center">
+                                    <h6>Attention (Combined Image)</h6>
+                                    <img src="data:image/png;base64,{{ item.attn_comb_b64 }}"
+                                        class="img-fluid rounded shadow-sm" />
+                                </div>
+                                {% endif %}
+
+                                {% if item.ig_b64 %}
+                                <div class="col-md-6 col-lg-3 text-center">
+                                    <h6>Integrated Gradients</h6>
+                                    <img src="data:image/png;base64,{{ item.ig_b64 }}"
+                                        class="img-fluid rounded shadow-sm" />
+                                </div>
+                                {% endif %}
+
+                                {% if item.gradcam_b64 %}
+                                <div class="col-md-6 col-lg-3 text-center">
+                                    <h6>Grad-CAM</h6>
+                                    <img src="data:image/png;base64,{{ item.gradcam_b64 }}"
+                                        class="img-fluid rounded shadow-sm" />
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Text attentions -->
+                            {% if item.attn_img_html %}
+                            <div class="mt-3">
+                                <h6>Attention (Image→Text)</h6>
+                                <div class="p-2 border rounded bg-light text-dark"
+                                    style="max-height:200px; overflow-y:auto; white-space:pre-wrap;">
+                                    {{ item.attn_img_html|safe }}
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            {% if item.comb_txt_html %}
+                            <div class="mt-3">
+                                <h6>Attention (Combined Text)</h6>
+                                <div class="p-2 border rounded bg-light text-dark"
+                                    style="max-height:200px; overflow-y:auto; white-space:pre-wrap;">
+                                    {{ item.comb_txt_html|safe }}
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            {% if item.final_token_html %}
+                            <div class="mt-3">
+                                <h6>Final Token-Level Attention</h6>
+                                <div class="p-2 border rounded bg-light text-dark"
+                                    style="max-height:200px; overflow-y:auto; white-space:pre-wrap;">
+                                    {{ item.final_token_html|safe }}
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            <hr />
+                            <p><strong>Labels:</strong></p>
+                            <ul>
+                                {% for label in item.labels %}
+                                <li>{{ label }}</li>
+                                {% endfor %}
+                            </ul>
+
+                            <p><strong>Report:</strong></p>
+                            <pre style="white-space: pre-wrap;">{{ item.report }}</pre>
+
+                            {% if item.cross_metrics %}
+                            <div class="mt-3">
+                                <h6>Cross-Modal Comparison Scores</h6>
+                                <ul>
+                                    {% for key, val in item.cross_metrics.items() %}
+                                    <li>{{ key }} → {{ val }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            {% if retrieval_diversity_score or retrieval_same_class_overlap %}
+            <div class="card mb-4 p-4">
+                <h2 class="card-title mb-3">Retrieval Diversity & Overlap</h2>
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered align-middle text-center">
+                        <thead class="table-light">
+                            <tr>
+                                <th scope="col">Metric</th>
+                                <th scope="col">Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if retrieval_diversity_score %}
+                            <tr>
+                                <td>Overall Diversity (1 - IoU among all retrieved)</td>
+                                <td>{{ retrieval_diversity_score }}</td>
+                            </tr>
+                            {% endif %}
+
+                            {% if retrieval_same_class_overlap %}
+                            <tr>
+                                <td>Same-Class Overlap (IoU among retrieved with main class)</td>
+                                <td>{{ retrieval_same_class_overlap }}</td>
+                            </tr>
+                            {% endif %}
+
+                            {% if retrieval_same_class_diversity %}
+                            <tr>
+                                <td>Same-Class Diversity (1 - IoU for main class)</td>
+                                <td>{{ retrieval_same_class_diversity }}</td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
+        {% endif %}
+
+    </div>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>

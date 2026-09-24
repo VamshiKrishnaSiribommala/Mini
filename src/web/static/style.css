@@ -1,0 +1,31 @@
+/* Dark-mode base */
+body {
+  background-color: #121212;
+  color: #e0e0e0;
+}
+
+/* Cards */
+.card {
+  background-color: #1e1e1e;
+  border: none;
+}
+
+/* Accordion buttons */
+.accordion-button {
+  background-color: #1e1e1e;
+  color: #e0e0e0;
+}
+.accordion-button:not(.collapsed) {
+  background-color: #292929;
+}
+
+/* Form labels */
+.form-label,
+.form-check-label {
+  color: #e0e0e0;
+}
+
+/* Optional: lighten hr dividers inside accordion bodies */
+.accordion-body hr {
+  border-color: #444;
+}

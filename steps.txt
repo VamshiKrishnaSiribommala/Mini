@@ -1,0 +1,41 @@
+HOW TO RUN THE APPLICATION (VERY SIMPLE)
+=========================================
+
+STEP 1: Open Command Prompt in this folder
+-----------------------------------------
+- Open this project folder in File Explorer.
+- Click on the address bar at the top, type "cmd", and press Enter.
+
+
+STEP 2: Start the Application
+-----------------------------
+- Type this command and press Enter:
+
+    run_app.bat
+
+  (Or simply double-click "run_app.bat" in the folder)
+
+- Wait until you see:
+    * Running on http://127.0.0.1:5000
+
+
+STEP 3: Open in Browser
+-----------------------
+- Open your browser and go to:
+    http://127.0.0.1:5000
+
+
+STEP 4: Test with Sample Data
+-----------------------------
+1. Click "Browse" and choose:
+   demo\sample_test.dcm
+
+2. In the text box, type:
+   Normal chest x-ray with clear lungs.
+
+3. Click "Run Analysis".
+
+
+TO STOP:
+--------
+Press Ctrl + C in the Command Prompt window.
