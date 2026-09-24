@@ -4,9 +4,13 @@ Follow these simple steps to run the application on your computer.
 
 ---
 
-### Step 1: Open Command Prompt in this folder
-1. Open this project folder in File Explorer.
-2. Click on the address bar at the top, type `cmd`, and press **Enter**.
+### Step 1: Clone the GitHub Repository
+Open Command Prompt and run:
+
+```cmd
+git clone https://github.com/VamshiKrishnaSiribommala/Mini.git
+cd Mini
+```
 
 ---
 
