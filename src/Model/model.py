@@ -281,8 +281,24 @@ class MultiModalRetrievalModel(nn.Module):
         #  Retrieval engine (offline index of embeddings)
         if not training:
             if checkpoint_path:
-                state = torch.load(checkpoint_path, map_location=device)
-                self.load_state_dict(state)
+                ckpt_p = Path(checkpoint_path)
+                if not ckpt_p.exists():
+                    print(f"[INFO] Checkpoint not found at {ckpt_p}. Auto-downloading from Hugging Face...")
+                    try:
+                        from huggingface_hub import hf_hub_download
+                        import shutil
+                        ckpt_p.parent.mkdir(parents=True, exist_ok=True)
+                        downloaded = hf_hub_download(
+                            repo_id="ppddddpp/unified-multimodal-chestxray",
+                            filename="model/checkpoints/swin_i/model_best.pt"
+                        )
+                        shutil.copy2(downloaded, str(ckpt_p))
+                        print(f"[INFO] Checkpoint downloaded successfully to {ckpt_p}")
+                    except Exception as e:
+                        print(f"[WARN] Failed to auto-download checkpoint: {e}")
+                if ckpt_p.exists():
+                    state = torch.load(str(ckpt_p), map_location=device)
+                    self.load_state_dict(state)
                 self.to(device)
                 self.eval()
             else:
